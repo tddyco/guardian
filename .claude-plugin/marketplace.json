@@ -1,0 +1,17 @@
+{
+  "name": "tddyco-guardian",
+  "owner": {
+    "name": "tddyco"
+  },
+  "plugins": [
+    {
+      "name": "guardian",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/tddyco/guardian.git",
+        "path": "claude"
+      },
+      "description": "LLM-based guardian that auto-approves read-only Bash commands and defers everything else to user approval"
+    }
+  ]
+}

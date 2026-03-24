@@ -1,0 +1,9 @@
+{
+  "name": "guardian",
+  "version": "0.1.0",
+  "description": "LLM-based guardian that auto-approves read-only Bash commands and defers everything else to user approval",
+  "author": {
+    "name": "Teddy"
+  },
+  "hooks": "./hooks/hooks.json"
+}
