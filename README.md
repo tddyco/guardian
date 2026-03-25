@@ -2,7 +2,7 @@
 
 An LLM-based PreToolUse hook that auto-approves read-only Bash commands and defers everything else to the normal user approval prompt.
 
-Tired of manually approving `ls`, `cat`, `python analyze.py`, and `git log`? This plugin invokes `claude -p` as a security reviewer to inspect each Bash command (including reading script files the agent may have written) and auto-approves when it's confident the operation is read-only.
+Tired of manually approving `ls`, `cat`, `python analyze.py`, and `git log`? This plugin invokes `claude -p` as a security reviewer to inspect each Bash command (including reading script files the agent may have written) and auto-approves when it's confident the operation is safe.
 
 ## What gets auto-approved
 
@@ -10,7 +10,7 @@ Tired of manually approving `ls`, `cat`, `python analyze.py`, and `git log`? Thi
 - **Git read-only**: `git log`, `git diff`, `git status`, `git show`, `git blame`, etc.
 - **GitHub CLI read-only**: `gh pr view`, `gh pr list`, `gh issue list`, `gh api` (GET only)
 - **System info**: `du`, `df`, `ps`, `uname`, `whoami`
-- **Data-analysis I/O**: writing to `./tmp/`, `./out/`, `./output/`, `./results/`, `/tmp/`, or redirecting output to files within the project
+- **Writes within CWD, /tmp, or Claude memory**: `mkdir`, `touch`, `cp`, `mv`, `rm`, output redirects — anything that stays inside the project directory, `/tmp`, or `~/.claude/projects/*/memory/`
 - **Scripts**: Python/Node/Bash scripts in the project directory — the guardian **reads the script contents** to verify they're safe before approving
 
 ## What gets deferred to the user
@@ -18,10 +18,10 @@ Tired of manually approving `ls`, `cat`, `python analyze.py`, and `git log`? Thi
 Everything else, including:
 - Mutating git operations (`git commit`, `git push`)
 - Package installation (`npm install`, `pip install`)
-- File deletion, creation, moves
+- Writes outside CWD, `/tmp`, and `~/.claude/projects/*/memory/`
 - Downloads (`curl`, `wget`)
 - `gh api` with mutating HTTP methods
-- `sudo`, `chmod`, `chown`
+- `sudo`, `chmod`/`chown` on system paths
 
 There is no "deny" category — the user always has the final say via the normal approval prompt.
 
@@ -60,10 +60,10 @@ To customize:
 The plugin registers a `PreToolUse` command hook on the `Bash` tool. When a Bash command needs approval:
 
 1. `guardian.sh` reads the hook input JSON from stdin
-2. It invokes `claude -p --bare --model sonnet` with the policy as system prompt and the command details as user input
+2. It invokes `claude -p --model sonnet` with the policy as system prompt and the command details as user input
 3. `--json-schema` enforces `{"ok": boolean, "reason": string}` output
 4. `--tools "Read"` lets the reviewer inspect script files but not write or execute anything
-5. `--bare` prevents recursive hook calls
+5. `--settings '{"disableAllHooks":true}'` prevents recursive hook calls
 6. If `ok: true` → auto-approve. Otherwise → show normal approval prompt
 7. Commands already covered by your allow-rules in settings.json bypass the hook entirely
 

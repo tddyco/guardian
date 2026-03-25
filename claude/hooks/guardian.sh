@@ -9,7 +9,6 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
-# Only review Bash commands
 if [ "$TOOL_NAME" != "Bash" ] || [ -z "$COMMAND" ]; then
   exit 0
 fi
@@ -38,7 +37,6 @@ RESPONSE=$(printf 'Evaluate this command:\nTool: %s\nCommand: %s\nWorking direct
   exit 0
 }
 
-# Parse the result — structured output is at .structured_output
 OK=$(echo "$RESPONSE" | jq -r '.structured_output.ok // false')
 
 if [ "$OK" = "true" ]; then

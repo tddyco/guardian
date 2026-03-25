@@ -9,4 +9,4 @@ Possible fixes:
 - Improve the prompt to be more explicit about how to construct the full path from CWD + relative script path
 - Pass `--add-dir` to the `claude -p` call so the Read tool has access to the right directory
 
-The 2 failing tests (`safe script (misleading name)` and `safe write-to-CWD script`) cover this case.
+The test suite covers this: safe script tests currently expect `"ask"` (the degraded behavior). Once fixed, they should expect `"allow"` for safe scripts and `"ask"` for dangerous ones.
