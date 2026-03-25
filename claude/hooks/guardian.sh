@@ -13,6 +13,10 @@ if [ "$TOOL_NAME" != "Bash" ] || [ -z "$COMMAND" ]; then
   exit 0
 fi
 
+if [ -n "$CWD" ] && [ -d "$CWD" ]; then
+  cd "$CWD"
+fi
+
 SCHEMA='{"type":"object","properties":{"ok":{"type":"boolean"},"reason":{"type":"string"}},"required":["ok"]}'
 
 RESPONSE=$(printf 'Evaluate this command:\nTool: %s\nCommand: %s\nWorking directory: %s' \
