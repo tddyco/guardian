@@ -2,7 +2,7 @@
 
 An LLM-based PreToolUse hook that auto-approves read-only Bash commands and defers everything else to the normal user approval prompt.
 
-Tired of manually approving `ls`, `cat`, `python analyze.py`, and `git log`? This plugin uses a Sonnet-powered agent hook to inspect each Bash command (including reading script files the agent may have written) and auto-approves when it's confident the operation is read-only.
+Tired of manually approving `ls`, `cat`, `python analyze.py`, and `git log`? This plugin invokes `claude -p` as a security reviewer to inspect each Bash command (including reading script files the agent may have written) and auto-approves when it's confident the operation is read-only.
 
 ## What gets auto-approved
 
@@ -42,41 +42,43 @@ claude --plugin-dir /path/to/claude-guardian/claude
 
 ### Verify
 
-Run `/hooks` inside Claude Code to confirm the PreToolUse hook is loaded.
+Run `/hooks` inside Claude Code to confirm the PreToolUse hook is loaded (`[command]` type).
 
 ## Customization
 
-The policy lives in `claude/policy.md`. A build script inlines it into `claude/hooks/hooks.json`.
+The policy lives in `claude/policy.md` and is read at runtime by the hook script. No build step needed.
 
 To customize:
 
 1. Fork this repo
 2. Edit `claude/policy.md` with your changes
-3. Run `node build.mjs` to update `claude/hooks/hooks.json`
-4. To change the model or timeout, edit `claude/hooks/hooks.json` directly
+3. To change the model, edit the `--model` flag in `claude/hooks/guardian.sh`
+4. To change the timeout, edit `claude/hooks/hooks.json`
 
 ## How it works
 
-The plugin registers a `PreToolUse` hook on the `Bash` tool using Claude Code's `type: agent` hook. When a Bash command needs approval:
+The plugin registers a `PreToolUse` command hook on the `Bash` tool. When a Bash command needs approval:
 
-1. A Sonnet-powered sub-agent receives the command details
-2. If the command runs a script file, the agent **reads the script** to inspect its contents
-3. The agent returns `"allow"` (auto-approve) or `"ask"` (show normal approval prompt)
-4. Commands already covered by your allow-rules in settings.json bypass the hook entirely
+1. `guardian.sh` reads the hook input JSON from stdin
+2. It invokes `claude -p --bare --model sonnet` with the policy as system prompt and the command details as user input
+3. `--json-schema` enforces `{"ok": boolean, "reason": string}` output
+4. `--tools "Read"` lets the reviewer inspect script files but not write or execute anything
+5. `--bare` prevents recursive hook calls
+6. If `ok: true` → auto-approve. Otherwise → show normal approval prompt
+7. Commands already covered by your allow-rules in settings.json bypass the hook entirely
 
-The agent has Read/Grep/Glob/Bash tools but **cannot Write or Edit** — it's read-only by design.
+## Debugging
 
-## Observability
-
-- **While reviewing**: the status bar shows "Guardian reviewing command..." during each review
-- **Debug mode**: run Claude Code with `--debug` to see full hook execution details
+- **`Ctrl+O`** in Claude Code toggles verbose mode — shows hook stdout/stderr inline
+- **`--debug`** flag shows full hook execution details
+- **`/hooks`** menu to verify the hook is loaded and check its source
 
 ## Known limitations
 
-- **Fail-open on errors**: Claude Code hooks are inherently fail-open — if the guardian agent times out or crashes, the command proceeds to the normal approval prompt. Since the guardian never returns "deny" (only "allow" or "ask"), the worst case is the user sees the normal approval prompt. This is a safe fallback, not a security hole.
-- **No conversation context**: the guardian only sees the current command and can read files, but doesn't have the full conversation history. It can't distinguish "user asked to delete this" from "agent decided to delete this on its own."
+- **Fail-open on errors**: if the guardian times out or crashes, the command falls through to the normal approval prompt. This is safe — the worst case is you see the prompt you'd normally see anyway.
+- **No conversation context**: the guardian only sees the current command and can read files, but doesn't have the full conversation history.
 - **Allow-rules take precedence**: commands already whitelisted in your settings.json bypass the guardian entirely.
 
 ## Cost
 
-The agent hook runs a Sonnet call on every non-whitelisted Bash command. For typical data analysis workflows this is a small overhead, but it adds up with many commands. Consider whitelisting your most frequent safe commands in settings.json to bypass the hook entirely.
+The hook invokes `claude -p` (Sonnet) on every non-whitelisted Bash command. For typical data analysis workflows this is a small overhead, but it adds up with many commands. Consider whitelisting your most frequent safe commands in settings.json to bypass the hook entirely.
