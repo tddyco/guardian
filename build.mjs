@@ -10,12 +10,12 @@ const hooksPath = join(root, "claude", "hooks", "hooks.json");
 
 const policy = readFileSync(policyPath, "utf-8").trimEnd();
 const hooks = JSON.parse(readFileSync(hooksPath, "utf-8"));
-const suffix = "\n\n## Evaluate this tool call:\n\n$ARGUMENTS";
+const promptText = policy + "\n\n## Evaluate this tool call:\n\n$ARGUMENTS";
 
 for (const hookGroup of hooks.hooks.PreToolUse ?? []) {
   for (const hook of hookGroup.hooks ?? []) {
-    if (hook.prompt?.includes("## Evaluate this tool call:")) {
-      hook.prompt = policy + suffix;
+    if ("prompt" in hook) {
+      hook.prompt = promptText;
     }
   }
 }

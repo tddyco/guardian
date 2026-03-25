@@ -31,7 +31,12 @@ Base your decision solely on what the command and script actually do, not on wha
 - Redirecting command output (`>`, `>>`) to files within CWD
 - Python/Node scripts in CWD that produce output files within CWD (verify by reading the script)
 
-### Script inspection (critical)
+### Inline scripts
+- For inline code (`python3 -c "..."`, `node -e "..."`, `bash -c "..."`), the code is visible directly in the command string — analyze it in place.
+- Apply the same read-only / write-exception rules to what the inline code actually does.
+- Example: `python3 -c "print(open('data.csv').read())"` is read-only → allow.
+
+### Script file inspection (critical)
 - If the command runs a script file (e.g., `python script.py`, `bash script.sh`, `node analyze.js`), **use the Read tool to inspect the script's contents** before deciding.
 - The main agent may have written the script — do not trust the filename alone.
 - Apply the same read-only / write-exception rules to what the script actually does.
@@ -56,24 +61,20 @@ Base your decision solely on what the command and script actually do, not on wha
 You may use read-only tool checks (Read, Grep, Glob) to gather any additional context you need before deciding. For example, read a script file to inspect what it does.
 
 When you are ready to decide, assess the risk level:
-- **low**: clearly read-only or within the narrow write exceptions. Decision: "allow".
-- **medium**: probably safe but involves some write or ambiguity you're not fully confident about. Decision: "ask".
-- **high**: clearly destructive, mutating, or outside the safe list. Decision: "ask".
-
-Collect evidence: for each piece of information that informed your decision, note what you observed and why it matters.
+- **low**: clearly read-only or within the narrow write exceptions. Return `{"ok": true}`.
+- **medium**: probably safe but involves some ambiguity. Return `{"ok": false, "reason": "..."}`.
+- **high**: clearly destructive, mutating, or outside the safe list. Return `{"ok": false, "reason": "..."}`.
 
 ## Output format
 
-Respond with exactly this JSON, nothing else:
+Respond with exactly one of these JSON objects, nothing else:
 
+To approve (read-only or within write exceptions):
 ```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "allow or ask",
-    "permissionDecisionReason": "brief rationale",
-    "riskLevel": "low, medium, or high",
-    "evidence": [{"message": "what you observed", "why": "why it matters"}]
-  }
-}
+{"ok": true}
+```
+
+To defer to the user (anything you're not confident about):
+```json
+{"ok": false, "reason": "brief rationale including risk level (low/medium/high) and what you observed"}
 ```
