@@ -82,3 +82,19 @@ The plugin registers a `PreToolUse` command hook on the `Bash` tool. When a Bash
 ## Cost
 
 The hook invokes `claude -p` (Sonnet) on every non-whitelisted Bash command. For typical data analysis workflows this is a small overhead, but it adds up with many commands. Consider whitelisting your most frequent safe commands in settings.json to bypass the hook entirely.
+
+## Comparison to alternatives
+
+Guardian was inspired by [Codex's experimental Guardian system](https://github.com/openai/codex/tree/main/codex-rs/core/src/guardian), which uses an LLM sub-agent to review tool calls for safety. I wanted something similar for Claude Code — but with a different philosophy.
+
+Codex Guardian and Claude Code's auto mode are primarily safety tools: they block destructive or malicious actions while letting normal work flow through. Guardian is much more conservative, while still being much more permissive than a typical sandbox. It auto-approves only operations with an extremely limited blast radius (reads + writes to CWD/tmp), and defers everything else to the user. This includes actions that are perfectly safe but externally visible, like posting a GitHub comment, pushing a branch, or installing a package. The goal isn't just to prevent damage, it's to prevent the AI from taking any irreversible or externally-visible action without explicit human review.
+
+This makes Guardian more conservative than either alternative, but more practical for my use case: data analysis workflows where I want the AI to freely read, write, and run scripts locally, but never act on my behalf in ways I can't easily undo.
+
+### vs. Claude Code auto mode
+
+[Auto mode](https://claude.com/blog/auto-mode) is Claude Code's built-in permission-free execution mode, currently a research preview (Team plans only). A background classifier reviews the full conversation and blocks actions that escalate beyond the task scope. It covers all tools, has strong prompt injection defenses (the classifier never sees tool results), and is customizable by admins via `autoMode` settings.
+
+### vs. Codex Guardian
+
+[Codex's Guardian](https://github.com/openai/codex/tree/main/codex-rs/core/src/guardian) is a deeply integrated approval system that reconstructs a compact conversation transcript and returns a numeric risk score. Its policy is general-purpose principles the model reasons from. It fails closed (errors → deny), relies on sandbox containment for script safety, and reuses a cached review session across evaluations for prompt caching.
